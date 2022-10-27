@@ -1,10 +1,13 @@
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
-    env, ext_contract, log, near_bindgen, AccountId, Gas, PanicOnDefault, Promise, PromiseResult,
+    env, ext_contract,
+    json_types::{self, U128},
+    log, near_bindgen, AccountId, Gas, PanicOnDefault, Promise, PromiseOrValue, PromiseResult,
 };
 
 const FT_CONTRACT_ACCOUNT: &str = "sub.ft_jk.testnet"; // <- あなたのftコントラクトをデプロイしたアカウントに変更してください！
 const AMOUNT_REWARD_FOR_INSPECTIONS: u128 = 15;
+const AMOUNT_TO_USE_BIKE: u128 = 30;
 
 /// 外部コントラクト(ftコントラクト)に実装されているメソッドをトレイトで定義
 #[ext_contract(ext_ft)]
@@ -75,11 +78,55 @@ impl Contract {
     }
 
     // バイク 使用可 -> 使用中
-    pub fn use_bike(&mut self, index: usize) {
-        // env::predecessor_account_id(): このメソッドを呼び出しているアカウント名を取得
-        let user_id = env::predecessor_account_id();
-        log!("{} uses bike", &user_id);
+    // pub fn use_bike(&mut self, index: usize) {
+    //     // env::predecessor_account_id(): このメソッドを呼び出しているアカウント名を取得
+    //     let user_id = env::predecessor_account_id();
+    //     log!("{} uses bike", &user_id);
 
+    //     match &self.bikes[index] {
+    //         Bike::Available => self.bikes[index] = Bike::InUse(user_id),
+    //         _ => panic!("Bike is not available"),
+    //     }
+    // }
+
+    /// AMOUNT_TO_USE_BIKEを返却します。
+    // コントラクト内の変数にアクセスしていませんが, viewメソッドにするためには&selfを明記します.
+    pub fn amount_to_use_bike(&self) -> U128 {
+        json_types::U128::from(AMOUNT_TO_USE_BIKE)
+    }
+
+    /// 他のコントラクトのft_transfer_call()によるftの転送がトリガーとなって呼び出されるメソッドです.
+    /// ft_transfer_call()は転送先のコントラクトにft_on_transfer()があることを期待しています.
+    pub fn ft_on_transfer(
+        &mut self,
+        sender_id: String,
+        amount: String,
+        msg: String,
+    ) -> PromiseOrValue<U128> {
+        assert_eq!(
+            amount,
+            AMOUNT_TO_USE_BIKE.to_string(),
+            "Require {} ft to use the bike",
+            AMOUNT_TO_USE_BIKE.to_string()
+        );
+
+        log!(
+            "in ft_on_transfer: sender:{}, amount:{}, msg:{}",
+            sender_id,
+            amount,
+            msg
+        );
+
+        // 使用するバイク: msgによってindexを指定してもらうことを期待
+        // sender_id.try_into().unwrap(): String型からAccountId型へ変換しています。
+        self.use_bike(msg.parse().unwrap(), sender_id.try_into().unwrap());
+        // 受信したFTは全て受け取るので, 返却する残金は0.
+        PromiseOrValue::Value(U128::from(0))
+    }
+
+    /// バイク 使用可 -> 使用中
+    fn use_bike(&mut self, index: usize, user_id: AccountId) {
+        log!("{} uses bike", &user_id);
         match &self.bikes[index] {
             Bike::Available => self.bikes[index] = Bike::InUse(user_id),
             _ => panic!("Bike is not available"),
