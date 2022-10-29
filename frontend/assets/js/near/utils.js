@@ -20,7 +20,7 @@ export async function initContract() {
   // Getting the Account ID. If still unauthorized, it's just empty string
   window.accountId = window.walletConnection.getAccountId();
 
-  // Initializing our contract APIs by contract name and configuration
+  // コントラクトAPIの初期化
   window.contract = await new Contract(
     window.walletConnection.account(),
     nearConfig.contractName,
@@ -30,8 +30,9 @@ export async function initContract() {
         "is_available",
         "who_is_using",
         "who_is_inspecting",
+        "amount_to_use_bike", // <- 追加！
       ],
-      changeMethods: ["use_bike", "inspect_bike", "return_bike"],
+      changeMethods: ["inspect_bike", "return_bike"], // <- "use_bike" 削除
     }
   );
 
@@ -41,7 +42,12 @@ export async function initContract() {
     nearConfig.ftContractName,
     {
       viewMethods: ["ft_balance_of", "storage_balance_of"],
-      changeMethods: ["storage_deposit", "storage_unregister", "ft_transfer"],
+      changeMethods: [
+        "storage_deposit",
+        "storage_unregister",
+        "ft_transfer",
+        "ft_transfer_call", // <- 追加！
+      ],
     }
   );
 }
@@ -86,12 +92,12 @@ export async function who_is_inspecting(index) {
   return response;
 }
 
-export async function use_bike(index) {
-  let response = await window.contract.use_bike({
-    index: index,
-  });
-  return response;
-}
+// export async function use_bike(index) {
+//   let response = await window.contract.use_bike({
+//     index: index,
+//   });
+//   return response;
+// }
 
 export async function inspect_bike(index) {
   let response = await window.contract.inspect_bike({
@@ -158,6 +164,24 @@ export async function ft_transfer(receiver_id, amount) {
     },
     "300000000000000",
     "1" // セキュリティ上必要な 1 yoctoNEAR
+  );
+  return response;
+}
+
+export async function amount_to_use_bike() {
+  let amount = await window.contract.amount_to_use_bike();
+  return amount;
+}
+
+export async function ft_transfer_call(index, amount) {
+  let response = await window.ftContract.ft_transfer_call(
+    {
+      receiver_id: nearConfig.contractName,
+      amount: amount,
+      msg: index.toString(),
+    },
+    "300000000000000",
+    "1"
   );
   return response;
 }
