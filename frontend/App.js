@@ -326,7 +326,13 @@ export default function App() {
     return (
       <>
         {isBikeLoading ? (
-          <p>Loding bike data ...</p>
+          <div class="bike" style={{ display: "flex" }}>
+            <div class="bike_img">
+              <img src={bikeImg} />
+            </div>
+            <div class="bike_index">: Loding Bike Contents ...</div>
+          </div>
+
         ) : (
           <div>
             {allBikeInfo.map((bike, index) => {
